@@ -2,7 +2,6 @@
 #include<vector>
 #include<algorithm>
 #include<map>
-#include<format>
 
 int main(int argc, char* argv[]) {
 
@@ -14,8 +13,8 @@ int main(int argc, char* argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	std::vector<uint8_t> v{ std::istream_iterator<char>(is),
-		std::istream_iterator<char>() };
+	std::vector<uint8_t> v{ std::istream_iterator<uint8_t>(is),
+		std::istream_iterator<uint8_t>() };
 
 	std::ofstream os(argv[2]);
 	std::map<uint8_t, int> m;
