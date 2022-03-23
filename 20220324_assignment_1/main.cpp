@@ -16,15 +16,15 @@ int main(int argc, char* argv[]) {
 	std::vector<uint8_t> v{ std::istream_iterator<uint8_t>(is),
 		std::istream_iterator<uint8_t>() };
 
-	std::ofstream os(argv[2]);
+	std::ofstream os(argv[2], std::ios::binary);
 	std::map<uint8_t, int> m;
 
-	for (const uint8_t t : v) {
+	for (const auto& t : v) {
 		const int counter = std::count(v.cbegin(), v.cend(), t);
 		m.insert(std::pair<uint8_t, int>(t, counter));
 	}
 
-	for (const std::pair<uint8_t, int> t : m) {
+	for (const auto& t : m) {
 		os << std::hex << std::get<0>(t);
 		os << '\t' << std::get<1>(t) << '\n';
 	}
