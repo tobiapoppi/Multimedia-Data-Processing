@@ -34,9 +34,9 @@ int main(int argc, char* argv[]) {
 	}
 
 	std::array<int64_t, 256> count{ 0 }; //this is only the first number initialization. All the rest is 0.
-										 // with arra.fill() i can fill with values, in an optimized way.
+										 // with array.fill() i can fill with values, in an optimized way.
 	
-
+	std::vector<uint8_t> v;
 
 	while (true) {
 		int val = is.get();
@@ -44,6 +44,11 @@ int main(int argc, char* argv[]) {
 			break;
 		}
 		count[val]++;
+	}
+
+	std::array<int64_t, 256> count{ 0 };
+	for (const auto& x : v) {
+		count[x]++;
 	}
 
 	std::ofstream os(argv[2], std::ios::out);
