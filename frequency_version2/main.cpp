@@ -36,7 +36,12 @@ int main(int argc, char* argv[]) {
 	std::array<int64_t, 256> count{ 0 }; //this is only the first number initialization. All the rest is 0.
 										 // with array.fill() i can fill with values, in an optimized way.
 	
-	std::vector<uint8_t> v;
+	is.seekg(0, std::ios::end);
+	auto size = is.tellg();
+	is.seekg(0, std::ios::beg);
+
+	std::vector<uint8_t> v(size);
+	is.read();
 
 	while (true) {
 		int val = is.get();
@@ -46,10 +51,20 @@ int main(int argc, char* argv[]) {
 		count[val]++;
 	}
 
-	std::array<int64_t, 256> count{ 0 };
+	std::vector<std::pair<uint8_t, uint64_t>> count(256);
+	std::generate(count.begin(), count.end(),
+		[]() {
+			static uint8_t i;
+			return std::make_pair(i++, uint64_t(0));
+		}
+		);
+	
 	for (const auto& x : v) {
-		count[x]++;
+		count[x].second++;
 	}
+	count.erase(remove_if(count.begin(), count.end(),
+		[](const std::pair<uint8_t, uint64_t>& t))
+
 
 	std::ofstream os(argv[2], std::ios::out);
 	if (!os) {
