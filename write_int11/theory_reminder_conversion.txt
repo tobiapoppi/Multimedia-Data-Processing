@@ -1,0 +1,40 @@
+279
+-41
+
+17 01 00 00  D7 FF FF FF
+
+001.0001.0111 111.1101.0111
+
+0010.0010 1111.1111 0101.1100
+
+22 FF 5C
+
+assumiamo di lavorare con 8bit numbers
+
+        abcd.efgh                   ogni lettera può essere 0 o 1
+
+f  -->  0000.000f
+
+voglio ottenere f: faccio
+
+        abcd.efgh &
+        0000.0100 =
+        -----------
+        0000.0f00 >> (shift)
+        0000.000f
+
+oppure (meglio fare prima lo shift così la mask non cambia)
+
+        abcd.efgh >>
+        00ab.cdef &
+        0000.0001 =
+        -----------
+        0000.000f
+
+MI RACCOMANDO LAVORA CON UNSIGNED ALTRIMENTI "a" VA NEI CASINI.
+
+        7654.3210
+  <---  ????.????  <---
+        abcd.efgh  <---
+
+        bcde.fgh1  <<
