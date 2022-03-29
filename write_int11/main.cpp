@@ -42,8 +42,33 @@ int main(int argc, char* argv[]) {
 		error("Cannot open file " + output_filename);
 	}
 
+	uint8_t buffer;
+	uint8_t nbits = 0;
+
 	for (const auto& x : v) {
-		os.write(reinterpret_cast<const char*>(&x), sizeof(x));
+		for (int n = 10; n > 0; --n) {
+			//for each of the lower 11 bits of x
+			uint8_t bitextracted = (x >> n) & 0b00000001; //i can also write in hex with 0x01
+														  //or & 1 in decimal version.
+														  // !!! && is not bitwise !!
+			//puth it in a buffer from the lower end. 
+			buffer = (buffer << 1) | bitextracted;
+			++nbits;
+			//If the buffer is full (8 bits) write it to file.
+			if (nbits == 8) {
+				os.write(reinterpret_cast<char*>(&buffer), 1);
+				nbits = 0;
+			}
+		}
+	}
+
+	while (0 < nbits && nbits < 8) {
+		uint8_t bit = 0;
+		buffer = (buffer << 1) | bit;
+		++nbits;
+		if (nbits == 8) {
+			os.write(reinterpret_cast<const char*>(&buffer), 1);
+		}
 	}
 
 	return EXIT_SUCCESS;
