@@ -21,7 +21,7 @@ void error(const std::string& msg) {
 }
 
 template<typename T>
-std::istream& raw_read(const std::istream& is, T& val, size_t size = sizeof(T)) {
+std::istream& raw_read(std::istream& is, T& val, size_t size = sizeof(T)) {
 	return is.read(reinterpret_cast<char*>(&val), size);
 }
 
@@ -37,8 +37,16 @@ int main(int argc, char* argv[]) {
 		error("Cannot open file " + input_filename);
 	}
 
-	std::vector<int32_t> v; //we can't use iterators this time
+
+	//std::vector<int32_t> v; //we can't use iterators this time
 	int32_t val;
+
+	is.seekg(0, std::ios::end);
+	auto size = is.tellg();
+	is.seekg(0, std::ios::beg);
+	std::vector<int32_t> v(size / 4);
+	raw_read(is, v[0], size);
+
 
 	//I assume Little Endian Architecture
 	/*raw_read(is, val);
