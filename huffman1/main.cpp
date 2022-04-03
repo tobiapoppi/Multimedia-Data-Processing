@@ -3,6 +3,7 @@
 #include <fstream>
 #include <array>
 #include <algorithm>
+#include <string>
 
 void syntax() {
 	std::cout << "SYNTAX:\n\n"
@@ -25,8 +26,6 @@ class bitreader {
 	uint8_t n_bits_;
 	std::istream& is_;
 
-	bitreader(std::istream& is) : is_(is) {}
-
 	int read_bit() {
 		if (n_bits_ == 0) {
 			if (!raw_read(is_, buffer_)) {
@@ -37,6 +36,9 @@ class bitreader {
 		--n_bits_;
 		return (buffer_ >> n_bits_) & 1;
 	}
+
+public:
+	bitreader(std::istream& is) : is_(is) {}
 
 	std::istream& read(uint32_t& u, uint8_t n) {
 		u = 0;
@@ -62,7 +64,7 @@ int main(int argc, char* argv[]) {
 			error("Cannot open file " + input_filename);
 		}
 
-		std::ofstream os(output_filename, std::ios::out);
+		std::ofstream os(output_filename, std::ios::binary);
 		if (!is) {
 			error("Cannot open file " + output_filename);
 		}
@@ -96,8 +98,15 @@ int main(int argc, char* argv[]) {
 				return (a.second < b.second);
 			});
 
-		//now we have to build the Huffman coding 
-
+		//now I have to build the Huffman coding 
+		std::vector<std::tuple<char, uint8_t, uint64_t>> huff(count.size());
+		
+		while (true) {
+			std::string a = std::to_string((char)(count[0].first));
+			std::string b = std::to_string((char)(count[1].first));
+			std::pair<std::string, uint64_t> new_sym(a + b, count[0].second + count[1].second);
+			//now create maybe a temporary coding and then re-sort the previous vect saving a copy? 
+		}
 	}
 	
 }
