@@ -44,9 +44,14 @@ struct frequency_counter {
 
 };
 
-template<typename T> 
+template<typename T>
 std::ostream& raw_write(std::ostream& os, const T& num, size_t size = sizeof(T)) {
 	return os.write(reinterpret_cast<const char*>(&num), size);
+}
+
+template<typename T>
+std::istream& raw_read(std::istream& is, T& num, size_t size = sizeof(T)) {
+	return is.read(reinterpret_cast<char*>(&num), size);
 }
 
 int main(int argc, char* argv[]) {
@@ -54,21 +59,21 @@ int main(int argc, char* argv[]) {
 	using std::cout;
 
 	if (argc != 3) {
-		error("SYNTAX:\n write_int32 <input_file.txt> <output_file.bin>\n");
+		error("SYNTAX:\n read_int32 <input_file.bin> <output_file.txt>\n");
 	}
 
-	std::ifstream is(argv[1]);
+	std::ifstream is(argv[1], std::ios::binary);
 	if (!is) {
 		error("Cannot open input file.\n");
 	}
 
-	std::ofstream os(argv[2], std::ios::binary);
+	std::ofstream os(argv[2]);
 	if (!os) {
 		error("Cannot open output file\n");
 	}
 	int32_t num;
-	while (is >> num) {
-		raw_write(os, num);
+	while (raw_read(is, num)) {
+		os << num << '\n';
 	}
 
 	return EXIT_SUCCESS;

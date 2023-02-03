@@ -44,7 +44,7 @@ struct frequency_counter {
 
 };
 
-template<typename T> 
+template<typename T>
 std::ostream& raw_write(std::ostream& os, const T& num, size_t size = sizeof(T)) {
 	return os.write(reinterpret_cast<const char*>(&num), size);
 }

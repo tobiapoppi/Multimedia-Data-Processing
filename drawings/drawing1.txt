@@ -1,0 +1,5 @@
+rectangle 0 0 56 24 §
+circle 70 10 4 @
+circle 10 10 4 @
+point 6 73 ù
+line 4 18 76 12 *
