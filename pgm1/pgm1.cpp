@@ -28,9 +28,20 @@ bool write(const std::string& filename, const matrix<uint8_t>& im, pgm_mode mode
 		}*/
 
 		// single loop version
+		/*
 		for (size_t i = 0; i < im.size(); ++i) {
 			os << +im[i] << " ";
+		}*/
+
+		// iterator version
+		for (auto it = im.begin(); it != im.end(); ++it) {
+			os << +*it << ' ';
 		}
+
+		//since we im has begin and end, I can also use range-based for.
+
+		//or, I can do alg. copy through iterators
+		//copy(im.begin(), im.end(), std::ostream_iterator<int>(os, " "));
 	}
 	else {
 		os.write(im.rawdata(), im.rawsize());
