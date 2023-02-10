@@ -1,61 +1,11 @@
 #include <cstdlib>
-#include <string>
 #include <fstream>
+#include <string>
+#include <iostream>
+#include "pgm.h"
 
-#include "matrix.h"
 
-enum class pgm_mode {plain = 2, binary = 5};
-
-bool write(const std::string& filename, const matrix<uint8_t>& im, pgm_mode mode) {
-	
-	std::ofstream os(filename);
-
-	if (!os) {
-		std::logic_error("Cannot open input file.\n");
-		return false;
-	}
-	os << "P" << int(mode) << "\n";
-	os << "# MDP2023 \n";
-	os << im.cols() << " " << im.rows() << "\n255\n";
-
-	if (mode == pgm_mode::plain) {
-		/*
-		for (size_t r = 0; r < im.rows(); ++r) {
-			for (size_t c = 0; c < im.cols(); ++c) {
-				os << +im(r, c) << " ";
-			}
-			os << "\n";
-		}*/
-
-		// single loop version
-		/*
-		for (size_t i = 0; i < im.size(); ++i) {
-			os << +im[i] << " ";
-		}*/
-
-		// iterator version
-		for (auto it = im.begin(); it != im.end(); ++it) {
-			os << +*it << ' ';
-		}
-
-		//since we im has begin and end, I can also use range-based for.
-
-		//or, I can do alg. copy through iterators
-		//copy(im.begin(), im.end(), std::ostream_iterator<int>(os, " "));
-	}
-	else {
-		os.write(im.rawdata(), im.rawsize());
-		/* exact same thing but slower
-		for (size_t r = 0; r < im.rows(); ++r) {
-			for (size_t c = 0; c < im.cols(); ++c) {
-				os << im(r, c);
-			}
-		}*/
-	}
-}
-
-int main(int argc, char** argv) {
-
+auto make_test_pattern() {
 	int r = 256;
 	int c = 256;
 	matrix<uint8_t> m(r, c);
@@ -64,9 +14,85 @@ int main(int argc, char** argv) {
 			m(i, j) = i;
 		}
 	}
+	return m;
+}
 
+auto read(const std::string& filename) {
+	std::ifstream is(filename, std::ios::binary);
+
+	matrix<uint8_t> immagine;
+
+	if (!is) {
+		return immagine;
+	}
+
+	pgm_mode mode;
+
+	std::string magic_number;
+	std::getline(is, magic_number); //read everything until the end of the line (\n).
+	
+	if (magic_number == "P2") {
+		mode = pgm_mode::plain;
+	}
+	else if (magic_number == "P5") {
+		mode = pgm_mode::binary;
+	}
+	else {
+		return immagine;
+	}
+
+	if (is.peek() == '#') {
+		std::string comment;
+		std::getline(is, comment);
+	}
+
+	int width, height, levels;
+	char newline;
+	is >> width >> height >> levels;
+	is.get(newline);
+
+	if (levels != 255 || newline != '\n') {
+		return immagine;
+	}
+
+	immagine.resize(height, width);
+
+	if (mode == pgm_mode::plain) {
+		for(auto& x : immagine){
+			int val;
+			is >> val;
+			x = val;
+		}
+	}
+	else {
+		is.read(immagine.rawdata(), immagine.rawsize());
+	}
+
+	return immagine;
+}
+
+void flip(matrix<uint8_t>& im) {
+	for (size_t r = 0; r < im.rows()/2; ++r) {
+		for (size_t c = 0; c < im.cols(); ++c) {
+			std::swap(im(r, c), im(im.rows() - 1 - r, c));
+		}
+	}
+}
+
+int main(int argc, char** argv) {
+
+	// solve exercise 1
+
+	matrix<uint8_t> m = make_test_pattern();
+	
 	write("test1.pgm", m, pgm_mode::plain);
 	write("test1_bin.pgm", m, pgm_mode::binary);
 
+	//solve exercise 2
+	m = read("test1_bin.pgm");
+	if (m.empty()) {
+		std::logic_error("Cannot read image.");
+	}
+	write("test___binout.pgm", m, pgm_mode::binary);
 	return EXIT_SUCCESS;
 }

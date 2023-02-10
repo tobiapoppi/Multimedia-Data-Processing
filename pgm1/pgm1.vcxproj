@@ -127,6 +127,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="pgm.cpp" />
+    <ClCompile Include="pgm.h" />
     <ClCompile Include="pgm1.cpp" />
   </ItemGroup>
   <ItemGroup>

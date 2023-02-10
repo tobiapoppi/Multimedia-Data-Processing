@@ -18,6 +18,12 @@
     <ClCompile Include="pgm1.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="pgm.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="pgm.h">
+      <Filter>Header Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="matrix.h">
