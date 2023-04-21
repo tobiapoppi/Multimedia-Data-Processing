@@ -15,7 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="snappy_decomp.cpp">
+    <ClCompile Include="snappy.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
