@@ -35,9 +35,28 @@ bool LoadPPM(const std::string& filename, mat<vec3b>& img) {
 	return true;
 }
 
+void SplitRGB(const mat<vec3b>& img, mat<uint8_t>& img_r, mat<uint8_t>& img_g, mat<uint8_t>& img_b) {
+	img_r.resize(img.rows(), img.cols());
+	img_g.resize(img.rows(), img.cols());
+	img_b.resize(img.rows(), img.cols());
+	for (size_t i = 0; i < img.rows(); ++i) {
+		for (size_t j = 0; j < img.cols(); ++j) {
+			img_r(i, j) = img(i, j)[0];
+			img_g(i, j) = img(i, j)[1];
+			img_b(i, j) = img(i, j)[2];
+		}
+	}
+}
+
 /*
 int main(int argc, char** argv) {
 	bool r;
 	mat<vec3b> img;
 	r = LoadPPM(argv[1], img);
+
+	mat<uint8_t> img_r;
+	mat<uint8_t> img_g;
+	mat<uint8_t> img_b;
+
+	SplitRGB(img, img_r, img_g, img_b);
 }*/
