@@ -127,6 +127,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="compress.cpp" />
     <ClCompile Include="ppm.cpp" />
     <ClCompile Include="process_ppm.cpp" />
   </ItemGroup>
