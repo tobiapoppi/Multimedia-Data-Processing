@@ -15,10 +15,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="process_ppm.cpp">
+    <ClCompile Include="ppm.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="ppm.cpp">
+    <ClCompile Include="json.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
