@@ -49,9 +49,6 @@ void SplitRGB(const mat<vec3b>& img, mat<uint8_t>& img_r, mat<uint8_t>& img_g, m
 	}
 }
 
-
-
-
 int main(int argc, char** argv) {
 	bool r;
 	mat<vec3b> img;
@@ -63,14 +60,16 @@ int main(int argc, char** argv) {
 
 	SplitRGB(img, img_r, img_g, img_b);
 
+	/*
 	std::ofstream os(argv[2]);
 
 	for (size_t i = 0; i < img_r.size(); ++i) {
 		os << +img_r.data()[i] << std::endl;
 	}
-
+	*/
 	std::vector<uint8_t> p;
 
 	PackBitsEncode(img_r, p);
-	uint8_t s = 1;
+	std::string s;
+	s = Base64Encode(p);
 }

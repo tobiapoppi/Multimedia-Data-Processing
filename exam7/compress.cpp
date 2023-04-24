@@ -1,6 +1,48 @@
 #include <vector>
+#include <algorithm>
 #include "mat.h"
 #include "ppm.h"
+
+uint8_t Base64Table(uint8_t x) {
+	if (x >= 0 && x <= 25) {
+		return x + 65;
+	}
+	else if (x >= 26 && x <= 51) {
+		return x + 71;
+	}
+	else if (x >= 52 && x <= 61) {
+		return x - 4;
+	}
+	else if (x == 62){
+		return 43;
+	}
+	else {
+		return 47;
+	}
+}
+
+std::string Base64Encode(const std::vector<uint8_t>& v) {
+	std::vector<uint8_t> v_c(v.size());
+	std::copy(v.begin(), v.end(), v_c.begin());
+	std::string s;
+	while (v_c.size() % 3 != 0) {
+		v_c.push_back(128);
+	}
+	for (size_t i = 0; i < v_c.size(); i += 3) {
+		uint32_t bit24;
+		bit24 = (v_c[i] << 16) + (v_c[i + 1] << 8) + (v_c[i + 2]);
+		uint8_t a = (bit24 & 0b00000000111111000000000000000000) >> 18;
+		uint8_t b = (bit24 & 0b00000000000000111111000000000000) >> 12;
+		uint8_t c = (bit24 & 0b00000000000000000000111111000000) >> 6;
+		uint8_t d = (bit24 & 0b00000000000000000000000000111111);
+		s.push_back(Base64Table(a));
+		s.push_back(Base64Table(b));
+		s.push_back(Base64Table(c));
+		s.push_back(Base64Table(d));
+	}
+	return s;
+}
+
 
 void PackBitsEncode(const mat<uint8_t>& img, std::vector<uint8_t>& encoded) {
 	uint8_t curr;
