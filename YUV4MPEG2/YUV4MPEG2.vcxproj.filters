@@ -41,5 +41,8 @@
     <ClCompile Include="y4m_gray.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="y4m_color.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>

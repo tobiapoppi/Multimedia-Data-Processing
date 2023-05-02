@@ -136,6 +136,7 @@
   <ItemGroup>
     <ClCompile Include="pgm.cpp" />
     <ClCompile Include="ppm.cpp" />
+    <ClCompile Include="y4m_color.cpp" />
     <ClCompile Include="y4m_gray.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

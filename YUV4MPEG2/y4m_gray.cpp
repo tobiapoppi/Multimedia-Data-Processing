@@ -72,8 +72,9 @@ bool y4m_extract_gray(const std::string& filename, std::vector<mat<uint8_t>>& fr
 	return true;
 }
 
+/*
 int main(int argc, char** argv) {
 	std::vector<mat<uint8_t>> frames;
 	bool res;
 	res = y4m_extract_gray(argv[1], frames);
-}
+}*/
