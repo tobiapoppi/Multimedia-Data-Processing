@@ -4,8 +4,6 @@
 #include <algorithm>
 #include <string>
 
-//#include "pgm.cpp"
-//#include "ppm.cpp"
 #include "mat.h"
 #include "pgm.h"
 #include "ppm.h"
@@ -63,12 +61,11 @@ bool y4m_extract_gray(const std::string& filename, std::vector<mat<uint8_t>>& fr
 
 	while (is.peek() != EOF) {
 		std::string t;
-		std::getline(is, t, ' ');
-		std::cout << t[0] << t[1] << t[2];
+		std::getline(is, t, char(0x0A));
 
 		mat<uint8_t> f(H, W);
 		is.read(reinterpret_cast<char*>(f.rawdata()), f.rawsize());
-		is.seekg(((H * W) / 4) * 2, std::ios::cur);
+		is.seekg(((H * W) / 4) * 2, std::ios_base::cur);
 		frames.push_back(f);
 	}
 	
