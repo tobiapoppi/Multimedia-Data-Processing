@@ -4,6 +4,8 @@
 #include <vector>
 #include <array>
 
+//these are commented because OLJ doens't have them and I must upload a single file.
+// 
 //#include "types.h"
 //#include "mat.h"
 
@@ -47,6 +49,7 @@ void write_pam(std::string out_filename, mat<vec3b>& img, uint32_t h, uint32_t w
 	}
 }
 
+/*
 int main(int argc, char** argv) {
 	std::string filename = argv[1];
 	std::ifstream is(filename, std::ios::binary);
@@ -105,4 +108,4 @@ int main(int argc, char** argv) {
 	write_pam(fg, img, h, w, 1);
 	write_pam(fb, img, h, w, 2);
 
-}
+}*/

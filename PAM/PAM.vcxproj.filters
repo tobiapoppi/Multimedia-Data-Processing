@@ -18,6 +18,9 @@
     <ClCompile Include="split.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="combine.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="types.h">
