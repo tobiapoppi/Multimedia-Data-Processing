@@ -120,7 +120,7 @@ void write_pam(std::string out_filename, mat<vec3b>& img) {
 		}
 	}
 }
-
+/*
 int main(int argc, char** argv) {
 	std::string filename = argv[1];
 	std::string out_f;
@@ -137,4 +137,4 @@ int main(int argc, char** argv) {
 	read_pam(filename, blue, 2);
 	comb(red, green, blue, img);
 	write_pam(out_f, img);
-}
+}*/

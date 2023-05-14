@@ -1,0 +1,34 @@
+
+nodo	freq	*left	*right
+
+a		9		null	null
+f		7		null	null
+c		5		null	null
+v		2		null	null
+r		1		null	null
+
+
+
+a		9		null	null
+f		7		null	null
+c		5		null	null
+vr		3		r		v
+
+
+
+a		9		null	null
+cvr		8		vr		c
+f		7		null	null
+
+	
+
+cvrf	15		f		cvr
+a		9		null	null
+
+
+
+cvrfa	26		a		cvrf 		--> root
+
+
+quindi ogni volta che arrivo a un nodo con left/right == nullptr allora
+avrò un simbolo da inserire in tabella.
