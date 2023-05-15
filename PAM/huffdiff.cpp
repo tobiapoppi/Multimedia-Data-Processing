@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include <vector>
+#include <memory>
 
 using vec3b = std::array<uint8_t, 3>;
 
@@ -24,6 +25,10 @@ public:
 	const T& operator() (int r, int c) const {
 		return data_[r * cols_ + c];
 	}
+
+	T& operator[](int i) { return data_[i]; }
+	const T& operator[](int i) const { return data_[i]; }
+
 	char* rawdata() { return reinterpret_cast<char*>(&data_[0]); }
 	const char* rawdata() const { return reinterpret_cast<const char*>(&data_[0]); }
 	int rawsize() const { return rows_ * cols_ * sizeof(T); }
@@ -77,6 +82,33 @@ struct bitwriter {
 
 };
 
+struct bitreader {
+	uint8_t buffer_;
+	uint8_t nbits_;
+	std::ifstream& is_;
+	
+	bitreader(std::ifstream& is) : is_(is), buffer_(0), nbits_(0){}
+
+	int read_bit() {
+		if (nbits_ == 8 || nbits_ == 0) {
+			is_.read(reinterpret_cast<char*>(&buffer_), 1);
+			nbits_ = 0;
+		}
+		uint32_t v;
+		v = buffer_ & 1;
+		buffer_ = buffer_ >> 1;
+		++nbits_;
+		return v;
+	}
+	
+	void read(uint32_t& u, uint8_t n) {
+		u = 0;
+		for (size_t i = 0; i < n; ++i) {
+			u += (read_bit() << i);
+		}
+	}
+};
+
 struct huffman {
 
 	struct node {
@@ -104,11 +136,12 @@ struct huffman {
 	};
 
 	struct code {
-		uint8_t sym_;
+		uint32_t sym_;
 		uint32_t len_, val_;
 		bool operator<(const code& rhs) const {
 			return len_ < rhs.len_;
 		}
+		code(uint32_t sym, uint32_t len, uint32_t val = 0) : sym_(sym), len_(len), val_(val) {}
 	};
 
 	void create_table(const std::unordered_map<uint8_t, uint32_t> map) {
@@ -236,6 +269,7 @@ void compress(std::string ifile, std::string ofile) {
 	huffman huff;
 	huff.create_table(f.f_);
 
+	//write huffdiff header
 	os << "HUFFDIFF";
 	os.write(reinterpret_cast<const char*>(&w), 4);
 	os.write(reinterpret_cast<const char*>(&h), 4);
@@ -248,6 +282,96 @@ void compress(std::string ifile, std::string ofile) {
 		bw.write(x.len_, 5);
 	}
 
+	//write huffdiff data
+	for (size_t i = 0; i < I.size(); ++i) {
+		for (auto& x : huff.codes_) {
+			if (x.sym_ == I[i]) {
+				bw.write(x.val_, x.len_);
+			}
+		}
+	}
+}
+
+template<typename T>
+void write_pam(std::string out_filename, mat<T>& img) {
+	std::ofstream os(out_filename, std::ios::binary);
+	os << "P7" << '\n' << "WIDTH " << std::to_string(img.cols()) << '\n' << "HEIGHT " << std::to_string(img.rows()) << '\n' << "DEPTH " << "1" << '\n';
+	os << "MAXVAL 255\nTUPLTYPE GRAYSCALE\nENDHDR\n";
+	for (size_t i = 0; i < img.rows(); ++i) {
+		for (size_t j = 0; j < img.cols(); ++j) {
+			os.write(reinterpret_cast<const char*>(&img(i, j)), 1);
+		}
+	}
+}
+
+void decompress(std::string ifile, std::string ofile) {
+	std::ifstream is(ifile, std::ios::binary);
+	if (!is) {
+		std::cout << "Error: cannot open input file." << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	std::ofstream os(ofile, std::ios::binary);
+	if (!os) {
+		std::cout << "Error: cannot open output file." << std::endl;
+		exit(EXIT_FAILURE);
+	}
+	huffman huff;
+	std::string mn(8, ' ');
+	uint32_t w;
+	uint32_t h;
+	is.read(reinterpret_cast<char*>(&mn[0]), 8);
+	is.read(reinterpret_cast<char*>(&w), 4);
+	is.read(reinterpret_cast<char*>(&h), 4);
+
+	bitreader br(is);
+	uint32_t numelem;
+	br.read(numelem, 9);
+	for (size_t i = 0; i < numelem; ++i) {
+		uint32_t sym;
+		uint32_t len;
+		br.read(sym, 9);
+		br.read(len, 5);
+		huff.codes_.emplace_back(huffman::code(sym, len));
+	}
+
+	std::sort(huff.codes_.begin(), huff.codes_.end());
+	huff.compute_zero_canonical();
+
+	mat<uint16_t> D(h, w);
+
+	for (size_t i = 0; i < h * w; ++i) {
+		uint32_t index = 0, code = 0, len = 0;
+		while (index != huff.codes_.size()) {
+			while (len < huff.codes_[index].len_) {
+				uint32_t bit;
+				br.read(bit, 1);
+				code = (code << 1) + bit;
+			}
+			if (code == huff.codes_[index].val_) {
+				break;
+			}
+			++index;
+		}
+		if (index == huff.codes_.size()) {
+			std::cout << "Error: file is corrupted." << std::endl;
+			exit(EXIT_FAILURE);
+		}
+		D[i] = huff.codes_[index].sym_;
+	}
+	mat<uint8_t> I(h, w);
+
+	I(0, 0) = D(0, 0);
+	for (size_t y = 0; y < D.rows(); ++y) {
+		for (size_t x = 0; x < D.cols(); ++x) {
+			if (x == 0 && y > 0) {
+			I(y, 0) = D(y, 0) + D(y - 1, 0);
+			}
+			else if (x > 0) {
+				I(y, x) = D(y, x) + D(y, x - 1);
+			}
+		}
+	}
+	write_pam(ofile, I);
 }
 
 int main(int argc, char** argv) {
@@ -262,9 +386,9 @@ int main(int argc, char** argv) {
 		compress(ifile, ofile);
 	}
 
-	/*else if (char(argv[1]) == 'd') {
-		decompress();
-	}*/
+	else if (argv[1][0] == 'd') {
+		decompress(ifile, ofile);
+	}
 
 	else {
 		std::cout << "Wrong syntax." << std::endl;

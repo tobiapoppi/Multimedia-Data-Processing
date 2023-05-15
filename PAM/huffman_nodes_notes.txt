@@ -32,3 +32,10 @@ cvrfa	26		a		cvrf 		--> root
 
 quindi ogni volta che arrivo a un nodo con left/right == nullptr allora
 avrò un simbolo da inserire in tabella.
+
+
+a	1	0
+f	2	10
+c	3	110
+v	4	1110
+r	4	1111
