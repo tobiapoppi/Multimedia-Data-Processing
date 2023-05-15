@@ -39,13 +39,13 @@ public:
 };
 
 struct frequencies {
-	std::unordered_map<uint8_t, uint32_t> f_;
+	std::unordered_map<uint16_t, uint32_t> f_;
 
-	void operator()(const uint8_t& sym) {
+	void operator()(const uint16_t& sym) {
 		++f_[sym];
 	}
 
-	auto& operator[](const uint8_t& sym) {
+	auto& operator[](const uint16_t& sym) {
 		return f_[sym];
 	}
 };
@@ -67,7 +67,7 @@ struct bitwriter {
 
 	void write(uint32_t u, uint8_t n) {
 		while (n-- > 0) {
-			write_bit(u >> n);
+			write_bit((u >> n) & 1);
 		}
 	}
 	
@@ -144,7 +144,7 @@ struct huffman {
 		code(uint32_t sym, uint32_t len, uint32_t val = 0) : sym_(sym), len_(len), val_(val) {}
 	};
 
-	void create_table(const std::unordered_map<uint8_t, uint32_t> map) {
+	void create_table(const std::unordered_map<uint16_t, uint32_t> map) {
 		std::vector<pnode> v;
 		std::vector<std::unique_ptr<node>> storage;
 		for (auto& x : map) {
@@ -250,6 +250,17 @@ void compress(std::string ifile, std::string ofile) {
 
 	//calculate difference matrix
 	mat<uint16_t> D(h, w);
+	int prev = 0;
+	for (int r = 0; r < D.rows(); ++r) {
+		for (int c = 0; c < D.cols(); ++c) {
+			D(r, c) = I(r, c) - prev;
+			prev = D(r, c);
+		}
+		prev = I(r, 0);
+	}
+
+
+	/*
 	D(0, 0) = I(0, 0);
 	for (size_t y = 0; y < I.rows(); ++y) {
 		for (size_t x = 0; x < I.cols(); ++x) {
@@ -260,7 +271,7 @@ void compress(std::string ifile, std::string ofile) {
 				D(y, x) = I(y, x) - I(y, x - 1);
 			}
 		}
-	}
+	}*/
 
 	//calculate frequencies of symbols
 	frequencies f;
