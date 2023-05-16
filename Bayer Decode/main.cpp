@@ -20,10 +20,10 @@ struct mat {
 		data_.resize(rows_ * cols_);
 	}
 	
-	T& operator() (int c, int r) {
+	T& operator() (int r, int c) {
 		return data_[r * cols_ + c];
 	}
-	const T& operator() (int c, int r) const {
+	const T& operator() (int r, int c) const {
 		return data_[r * cols_ + c];
 	}
 
@@ -223,8 +223,7 @@ bool load_pgm(std::string ifile, std::string ofile) {
 	mat<uint8_t> pgm_new(h, w);
 	convert_16_to_8(pgm, pgm_new);
 
-	ofile = ifile.substr(0, ifile.find_last_of(".")) + "_gray.pgm";
-	write_pgm(ofile, pgm_new);
+	write_pgm(ofile + "_gray.pgm", pgm_new);
 
 	mat<vec3b> img(h, w);
 	for (size_t i = 0; i < img.rows(); ++i) {
@@ -248,18 +247,15 @@ bool load_pgm(std::string ifile, std::string ofile) {
 		}
 	}
 
-	ofile = ifile.substr(0, ifile.find_last_of(".")) + "_bayer.ppm";
-	write_ppm(ofile, img);
+	write_ppm(ofile + "_bayer.ppm", img);
 
 	interpolate_firstPass(img);
 
-	ofile = ifile.substr(0, ifile.find_last_of(".")) + "_green.ppm";
-	write_ppm(ofile, img);
+	write_ppm(ofile + "_green.ppm", img);
 
 	interpolate_secondPass(img);
 	
-	ofile = ifile.substr(0, ifile.find_last_of(".")) + "_interp.ppm";
-	write_ppm(ofile, img);
+	write_ppm(ofile + "_interp.ppm", img);
 
 }
 
