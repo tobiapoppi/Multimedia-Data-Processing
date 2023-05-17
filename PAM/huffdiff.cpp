@@ -39,17 +39,17 @@ public:
 };
 
 struct frequencies {
-	std::unordered_map<uint16_t, uint32_t> f_;
+	std::unordered_map<int, uint32_t> f_;
 
-	void operator()(const uint16_t& sym) {
+	void operator()(const int& sym) {
 		++f_[sym];
 	}
 
-	auto& operator[](const uint16_t& sym) {
+	auto& operator[](const int& sym) {
 		return f_[sym];
 	}
 };
-
+/*
 struct bitwriter {
 	uint8_t buffer_;
 	uint8_t nbits_;
@@ -108,6 +108,68 @@ struct bitreader {
 		}
 	}
 };
+*/
+
+
+struct bitwriter {
+	uint8_t buffer_ = 0;
+	size_t nwrotebits_ = 0;
+	std::ostream& os_;
+
+	bitwriter(std::ostream& os, bool mode = 0) : os_(os) {}
+	~bitwriter() {
+		flush();
+	}
+
+	void write_bit(uint64_t u) {
+		buffer_ = (buffer_ << 1) + (u & 1);
+		++nwrotebits_;
+	}
+
+	void operator()(uint64_t num, uint8_t n) {
+		while (n-- > 0) {
+			if (nwrotebits_ == 8) {
+				os_.write(reinterpret_cast<const char*>(&buffer_), 1);
+				nwrotebits_ = 0;
+			}
+			write_bit(num >> n);
+		}
+	}
+
+	void flush(uint8_t fill = 0) {
+		while (nwrotebits_ != 8) {
+			write_bit(0);
+		}
+		os_.write(reinterpret_cast<const char*>(&buffer_), 1);
+	}
+};
+
+struct bitreader {
+	uint8_t buffer_;
+	size_t nreadbits_ = 8;
+	std::istream& is_;
+
+	bitreader(std::istream& is) : is_(is) {	}
+
+	uint32_t read_bit() {
+		uint32_t b = (buffer_ >> (8 - nreadbits_ - 1)) & 1;
+		++nreadbits_;
+		return b;
+	}
+
+	void operator() (uint32_t& val, uint32_t n) {
+		val = 0;
+		for (size_t i = 0; i < n; ++i) {
+			if (nreadbits_ == 8) {
+				is_.read(reinterpret_cast<char*>(&buffer_), 1);
+				nreadbits_ = 0;
+			}
+			val = (val << 1) + (read_bit() & 1);
+		}
+	}
+
+};
+
 
 struct huffman {
 
@@ -136,15 +198,15 @@ struct huffman {
 	};
 
 	struct code {
-		uint32_t sym_;
+		int sym_;
 		uint32_t len_, val_;
 		bool operator<(const code& rhs) const {
 			return len_ < rhs.len_;
 		}
-		code(uint32_t sym, uint32_t len, uint32_t val = 0) : sym_(sym), len_(len), val_(val) {}
+		code(int sym, uint32_t len, uint32_t val = 0) : sym_(sym), len_(len), val_(val) {}
 	};
 
-	void create_table(const std::unordered_map<uint16_t, uint32_t> map) {
+	void create_table(const std::unordered_map<int, uint32_t> map) {
 		std::vector<pnode> v;
 		std::vector<std::unique_ptr<node>> storage;
 		for (auto& x : map) {
@@ -249,29 +311,15 @@ void compress(std::string ifile, std::string ofile) {
 	is.read(reinterpret_cast<char*>(I.rawdata()), I.rawsize());
 
 	//calculate difference matrix
-	mat<uint16_t> D(h, w);
+	mat<int> D(h, w);
 	int prev = 0;
 	for (int r = 0; r < D.rows(); ++r) {
 		for (int c = 0; c < D.cols(); ++c) {
 			D(r, c) = I(r, c) - prev;
-			prev = D(r, c);
+			prev = I(r, c);
 		}
 		prev = I(r, 0);
 	}
-
-
-	/*
-	D(0, 0) = I(0, 0);
-	for (size_t y = 0; y < I.rows(); ++y) {
-		for (size_t x = 0; x < I.cols(); ++x) {
-			if (x == 0 && y > 0) {
-				D(y, 0) = I(y, 0) - I(y - 1, 0);
-			}
-			else if (x > 0) {
-				D(y, x) = I(y, x) - I(y, x - 1);
-			}
-		}
-	}*/
 
 	//calculate frequencies of symbols
 	frequencies f;
@@ -286,18 +334,18 @@ void compress(std::string ifile, std::string ofile) {
 	os.write(reinterpret_cast<const char*>(&h), 4);
 
 	bitwriter bw(os);
-	bw.write(huff.codes_.size(), 9);
+	bw(huff.codes_.size(), 9);
 
 	for (auto& x : huff.codes_) {
-		bw.write(x.sym_, 9);
-		bw.write(x.len_, 5);
+		bw(x.sym_, 9);
+		bw(x.len_, 5);
 	}
 
 	//write huffdiff data
 	for (size_t i = 0; i < I.size(); ++i) {
 		for (auto& x : huff.codes_) {
 			if (x.sym_ == I[i]) {
-				bw.write(x.val_, x.len_);
+				bw(x.val_, x.len_);
 			}
 		}
 	}
@@ -336,12 +384,12 @@ void decompress(std::string ifile, std::string ofile) {
 
 	bitreader br(is);
 	uint32_t numelem;
-	br.read(numelem, 9);
+	br(numelem, 9);
 	for (size_t i = 0; i < numelem; ++i) {
 		uint32_t sym;
 		uint32_t len;
-		br.read(sym, 9);
-		br.read(len, 5);
+		br(sym, 9);
+		br(len, 5);
 		huff.codes_.emplace_back(huffman::code(sym, len));
 	}
 
@@ -355,7 +403,7 @@ void decompress(std::string ifile, std::string ofile) {
 		while (index != huff.codes_.size()) {
 			while (len < huff.codes_[index].len_) {
 				uint32_t bit;
-				br.read(bit, 1);
+				br(bit, 1);
 				code = (code << 1) + bit;
 			}
 			if (code == huff.codes_[index].val_) {
