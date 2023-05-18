@@ -6,6 +6,20 @@
 #include <vector>
 #include <memory>
 
+
+#include <fstream>
+#include <iostream>
+#include <array>
+#include <iomanip>
+#include <iterator>
+#include <cstdint>
+#include <string>
+#include <sstream>
+#include <vector>
+#include <unordered_map>
+#include <numeric>
+#include <set>
+
 using vec3b = std::array<uint8_t, 3>;
 
 template<typename T>
@@ -174,12 +188,12 @@ struct bitreader {
 struct huffman {
 
 	struct node {
-		uint8_t sym_;
+		int sym_;
 		size_t prob_;
 		node* left_ = nullptr;
 		node* right_ = nullptr;
 
-		node(const uint8_t& sym, size_t p) : sym_(sym), prob_(p) {}
+		node(const int& sym, size_t p) : sym_(sym), prob_(p) {}
 
 		node(node* n1, node* n2) : prob_(n1->prob_ + n2->prob_), left_(n1), right_(n2) {}
 	};
@@ -334,17 +348,33 @@ void compress(std::string ifile, std::string ofile) {
 	os.write(reinterpret_cast<const char*>(&h), 4);
 
 	bitwriter bw(os);
-	bw(huff.codes_.size(), 9);
+	bw(static_cast<uint32_t>(huff.codes_.size()), 9);
 
-	for (auto& x : huff.codes_) {
+	for (const auto& x : huff.codes_) {
 		bw(x.sym_, 9);
 		bw(x.len_, 5);
 	}
 
+	/*
+	//create a search map to avoid a lot of cycles
+	std::unordered_map<int, huffman::code> search_map;
+	for (const auto& x : huff.codes_) {
+		search_map[x.sym_] = x;
+	}
+
 	//write huffdiff data
-	for (size_t i = 0; i < I.size(); ++i) {
+	for (const auto& x : D) {
+		auto cs = search_map[x];
+		bw(cs.val_, cs.len_);
+	}*/
+	std::unordered_map<int, huffman::code> search_map;
+	for (const auto& x : huff.codes_) {
+		search_map[x.sym_] = x;
+	}
+	//write huffdiff data
+	for (size_t i = 0; i < D.size(); ++i) {
 		for (auto& x : huff.codes_) {
-			if (x.sym_ == I[i]) {
+			if (x.sym_ == D[i]) {
 				bw(x.val_, x.len_);
 			}
 		}
