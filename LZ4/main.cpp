@@ -65,6 +65,7 @@ int read_sequence(std::ifstream& is, std::vector<uint8_t>& us, uint32_t& bl) {
 		} while (ext == 255);
 	}
 
+	//write to uncompressed-stream
 	while (ml-- > 0) {
 		us.push_back(us[us.size() - off]);
 	}
