@@ -6,20 +6,6 @@
 #include <vector>
 #include <memory>
 
-
-#include <fstream>
-#include <iostream>
-#include <array>
-#include <iomanip>
-#include <iterator>
-#include <cstdint>
-#include <string>
-#include <sstream>
-#include <vector>
-#include <unordered_map>
-#include <numeric>
-#include <set>
-
 using vec3b = std::array<uint8_t, 3>;
 
 template<typename T>
@@ -63,25 +49,15 @@ struct frequencies {
 		return f_[sym];
 	}
 };
-/*
-struct bitwriter {
+
+class bitwriter {
 	uint8_t buffer_;
 	uint8_t nbits_;
 	std::ofstream& os_;
 
-	bitwriter(std::ofstream& os) : buffer_(0), nbits_(0), os_(os) {}
-	~bitwriter() {
-		flush();
-	}
 	void flush() {
 		while (nbits_ > 0) {
 			write_bit(0);
-		}
-	}
-
-	void write(uint32_t u, uint8_t n) {
-		while (n-- > 0) {
-			write_bit((u >> n) & 1);
 		}
 	}
 	
@@ -94,14 +70,23 @@ struct bitwriter {
 		}
 	}
 
+public:
+	bitwriter(std::ofstream& os) : buffer_(0), nbits_(0), os_(os) {}
+	~bitwriter() {
+		flush();
+	}
+
+	void operator()(uint32_t u, uint8_t n) {
+		while (n-- > 0) {
+			write_bit((u >> n) & 1);
+		}
+	}
 };
 
-struct bitreader {
+class bitreader {
 	uint8_t buffer_;
 	uint8_t nbits_;
 	std::ifstream& is_;
-	
-	bitreader(std::ifstream& is) : is_(is), buffer_(0), nbits_(0){}
 
 	int read_bit() {
 		if (nbits_ == 8 || nbits_ == 0) {
@@ -114,76 +99,23 @@ struct bitreader {
 		++nbits_;
 		return v;
 	}
-	
+
+public:
+	bitreader(std::ifstream& is) : is_(is), buffer_(0), nbits_(0) {}
+
 	void read(uint32_t& u, uint8_t n) {
 		u = 0;
 		for (size_t i = 0; i < n; ++i) {
 			u += (read_bit() << i);
 		}
 	}
-};
-*/
-
-
-struct bitwriter {
-	uint8_t buffer_ = 0;
-	size_t nwrotebits_ = 0;
-	std::ostream& os_;
-
-	bitwriter(std::ostream& os, bool mode = 0) : os_(os) {}
-	~bitwriter() {
-		flush();
-	}
-
-	void write_bit(uint64_t u) {
-		buffer_ = (buffer_ << 1) + (u & 1);
-		++nwrotebits_;
-	}
-
-	void operator()(uint64_t num, uint8_t n) {
-		while (n-- > 0) {
-			if (nwrotebits_ == 8) {
-				os_.write(reinterpret_cast<const char*>(&buffer_), 1);
-				nwrotebits_ = 0;
-			}
-			write_bit(num >> n);
-		}
-	}
-
-	void flush(uint8_t fill = 0) {
-		while (nwrotebits_ != 8) {
-			write_bit(0);
-		}
-		os_.write(reinterpret_cast<const char*>(&buffer_), 1);
+	
+	void read(int32_t& i, uint8_t n) {
+		uint32_t u;
+		read(u, n);
+		i = static_cast<int32_t>(u);
 	}
 };
-
-struct bitreader {
-	uint8_t buffer_;
-	size_t nreadbits_ = 8;
-	std::istream& is_;
-
-	bitreader(std::istream& is) : is_(is) {	}
-
-	uint32_t read_bit() {
-		uint32_t b = (buffer_ >> (8 - nreadbits_ - 1)) & 1;
-		++nreadbits_;
-		return b;
-	}
-
-	void operator() (uint32_t& val, uint32_t n) {
-		val = 0;
-		for (size_t i = 0; i < n; ++i) {
-			if (nreadbits_ == 8) {
-				is_.read(reinterpret_cast<char*>(&buffer_), 1);
-				nreadbits_ = 0;
-			}
-			val = (val << 1) + (read_bit() & 1);
-		}
-	}
-
-};
-
 
 struct huffman {
 
@@ -217,7 +149,7 @@ struct huffman {
 		bool operator<(const code& rhs) const {
 			return len_ < rhs.len_;
 		}
-		code(int sym, uint32_t len, uint32_t val = 0) : sym_(sym), len_(len), val_(val) {}
+		//code(int sym, uint32_t len, uint32_t val = 0) : sym_(sym), len_(len), val_(val) {}
 	};
 
 	void create_table(const std::unordered_map<int, uint32_t> map) {
@@ -272,7 +204,6 @@ struct huffman {
 	}
 
 	std::vector<code> codes_;
-
 };
 
 void compress(std::string ifile, std::string ofile) {
@@ -355,29 +286,13 @@ void compress(std::string ifile, std::string ofile) {
 		bw(x.len_, 5);
 	}
 
-	/*
-	//create a search map to avoid a lot of cycles
 	std::unordered_map<int, huffman::code> search_map;
-	for (const auto& x : huff.codes_) {
-		search_map[x.sym_] = x;
-	}
-
-	//write huffdiff data
-	for (const auto& x : D) {
-		auto cs = search_map[x];
-		bw(cs.val_, cs.len_);
-	}*/
-	std::unordered_map<int, huffman::code> search_map;
-	for (const auto& x : huff.codes_) {
+	for (auto& x : huff.codes_) {
 		search_map[x.sym_] = x;
 	}
 	//write huffdiff data
 	for (size_t i = 0; i < D.size(); ++i) {
-		for (auto& x : huff.codes_) {
-			if (x.sym_ == D[i]) {
-				bw(x.val_, x.len_);
-			}
-		}
+		bw(search_map[D[i]].val_, search_map[D[i]].len_);
 	}
 }
 
@@ -414,13 +329,14 @@ void decompress(std::string ifile, std::string ofile) {
 
 	bitreader br(is);
 	uint32_t numelem;
-	br(numelem, 9);
+	br.read(numelem, 9);
 	for (size_t i = 0; i < numelem; ++i) {
 		uint32_t sym;
 		uint32_t len;
-		br(sym, 9);
-		br(len, 5);
-		huff.codes_.emplace_back(huffman::code(sym, len));
+		huffman::code curr;
+		br.read(curr.sym_, 9);
+		br.read(curr.len_, 5);
+		huff.codes_.push_back(curr);
 	}
 
 	std::sort(huff.codes_.begin(), huff.codes_.end());
@@ -433,7 +349,7 @@ void decompress(std::string ifile, std::string ofile) {
 		while (index != huff.codes_.size()) {
 			while (len < huff.codes_[index].len_) {
 				uint32_t bit;
-				br(bit, 1);
+				br.read(bit, 1);
 				code = (code << 1) + bit;
 			}
 			if (code == huff.codes_[index].val_) {
