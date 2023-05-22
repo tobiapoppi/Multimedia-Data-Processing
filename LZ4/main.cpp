@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <math.h>
 
 int read_header(std::ifstream& is, uint32_t& len_uncomp) {
 	uint32_t mn, constant;
@@ -73,13 +74,19 @@ int read_sequence(std::ifstream& is, std::vector<uint8_t>& us, uint32_t& bl) {
 	return(EXIT_SUCCESS);
 }
 
-int read_block(std::ifstream& is, std::vector<uint8_t>& us, uint32_t& uncomp_len) {
+int read_block(std::ifstream& is, std::ofstream& os, std::vector<uint8_t>& us, uint32_t& uncomp_len) {
 	uint32_t bl;
 	size_t size_curr = 0;
 	is.read(reinterpret_cast<char*>(&bl), 4);
 	while (bl > 0) {
 		if (read_sequence(is, us, bl) != 0) {
 			return(EXIT_FAILURE);
+		}
+
+		if ((us.size() / 65536) >= 2){
+			int m = us.size() - 65537; //m dice quanti byte ho in più rispetto al necessario
+			os.write(reinterpret_cast<const char*>(us.data()), m); //quindi scrivoi primi m su file
+			us.erase(us.begin(), us.size() > m ? us.begin() + m : us.end()); //e rimuovo dallo zero alla zero + m elementi (perchè l'iterator last è escluso).
 		}
 		if ((us.size() - size_curr) > uncomp_len) {
 			uncomp_len = 0;
@@ -114,7 +121,7 @@ int decode(std::string ifile, std::string ofile) {
 
 	std::vector<uint8_t> us;
 	while (uncomp_len > 0) {
-		if (read_block(is, us, uncomp_len) != 0) {
+		if (read_block(is, os, us, uncomp_len) != 0) {
 			return(EXIT_FAILURE);
 		}
 	}
