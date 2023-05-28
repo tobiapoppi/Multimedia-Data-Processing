@@ -36,20 +36,23 @@ public:
 	auto& end() { return data_.end(); }
 	const auto& end() const { return data_.end(); }
 
-	T& operator(int r, int c) { return data_[(r * c_) + c]; }
+	T& at(int r, int c) { return data_[(r * c_) + c]; }
 	const T& operator(int r, int c) const { return data_[(r * c_) + c]; }
+
+	auto get_pixel_addr(int r, int c) { return &data_[(r * c_) + c]; }
 
 	auto rawdata() { return data_.data(); }
 	int rawsize() { return r_ * c_ * sizeof(T); }
 
 };
 
-std::variant<mat<rgb>, mat<rgba>> read_pam(std::string ifile) {
+mat<rgba>& read_pam(std::string ifile) {
 	std::string s;
 	std::ifstream is(ifile, std::ios::binary);
 	if (!is) {
 		std::cout << "Error: cannot open input file." << std::endl;
-		return false;
+		mat<rgba> im(0, 0);
+		return im;
 	}
 	int w, h, d, mv;
 
@@ -83,8 +86,13 @@ std::variant<mat<rgb>, mat<rgba>> read_pam(std::string ifile) {
 	is.get();
 	if (d == 3) {
 		//RGB
-		mat<rgb> im(h, w);
-		is.read(reinterpret_cast<char*>(im.rawdata()), im.rawsize());
+		mat<rgba> im(h, w);
+		for (size_t r; r < h; ++r) {
+			for (size_t c; c < w; ++c) {
+				is.read(reinterpret_cast<char*>(&im.at(r, c)), 3);
+				im.at(r, c)[3] = 255;
+			}
+		}
 		return im;
 	}
 	else if (d == 4){
@@ -95,11 +103,19 @@ std::variant<mat<rgb>, mat<rgba>> read_pam(std::string ifile) {
 
 	}
 	else {
-		mat<rgb> im;
+		mat<rgba> im(0, 0);
 		std::cout << "Error: input file cannot be grayscale." << std::endl;
 		return im;
 	}
 
+}
+
+void paste_img(mat<rgba>& new_im, mat<rgba>& im, int x_off, int y_off) {
+	for (int r = 0; r < im.rows(); ++r) {
+		for (int c = 0; c < im.cols(); ++c) {
+			new_im.at(r + y_off, c + x_off) = im.at(r, c);
+		}
+	}
 }
 
 bool compose(std::string ifile1, std::string ifile2, std::string ofile, int x_off_1, int y_off_1, int x_off_2, int y_off_2) {
@@ -107,6 +123,18 @@ bool compose(std::string ifile1, std::string ifile2, std::string ofile, int x_of
 	auto im1 = read_pam(ifile1);
 	auto im2 = read_pam(ifile2);
 
+	int new_w = std::max(im1.cols(), im2.cols()) + std::max(x_off_1, x_off_2);
+	int new_h = std::max(im1.rows(), im2.rows()) + std::max(y_off_1, y_off_2);
+
+	mat<rgba> new_im(new_h, new_w);
+	
+	//paste first image and second image in new one
+	paste_img(new_im, im1, x_off_1, y_off_1);
+	paste_img(new_im, im2, x_off_2, y_off_2);
+
+	//TODO: calculate alpha
+
+	return true;
 }
 
 int main(int argc, char** argv) {
@@ -157,7 +185,7 @@ int main(int argc, char** argv) {
 			ifile2 += ".pam";
 		}
 	}
-	if (compose(ifile1, ifile2, ofile, x_off_1, y_off_1, x_off_2, y_off_2);) {
+	if (compose(ifile1, ifile2, ofile, x_off_1, y_off_1, x_off_2, y_off_2)) {
 		return EXIT_SUCCESS;
 	}
 }
