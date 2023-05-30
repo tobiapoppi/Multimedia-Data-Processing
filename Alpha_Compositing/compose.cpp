@@ -15,13 +15,18 @@ class mat {
 	std::vector<T> data_;
 
 public:
-	mat() : r_(0), c_(0), data_(0) {}
-	mat(int r, int c) : r_(r), c_(c), data_(r* c*) {}
+	mat(int r, int c) : r_(r), c_(c), data_(r * c) {}
 
 	void resize(int r, int c) {
 		r_ = r;
 		c_ = c;
-		data_.resize(r, c);
+		data_.resize(r*c);
+	}
+
+	void clear() {
+		data_.clear();
+		r_ = 0;
+		c_ = 0;
 	}
 
 	int rows() { return r_; }
@@ -37,7 +42,7 @@ public:
 	const auto& end() const { return data_.end(); }
 
 	T& at(int r, int c) { return data_[(r * c_) + c]; }
-	const T& operator(int r, int c) const { return data_[(r * c_) + c]; }
+	const T& operator()(int r, int c) const { return data_[(r * c_) + c]; }
 
 	auto get_pixel_addr(int r, int c) { return &data_[(r * c_) + c]; }
 
@@ -46,13 +51,12 @@ public:
 
 };
 
-mat<rgba>& read_pam(std::string ifile) {
+bool read_pam(std::string ifile, mat<rgba>& im) {
 	std::string s;
 	std::ifstream is(ifile, std::ios::binary);
 	if (!is) {
 		std::cout << "Error: cannot open input file." << std::endl;
-		mat<rgba> im(0, 0);
-		return im;
+		return false;
 	}
 	int w, h, d, mv;
 
@@ -86,26 +90,25 @@ mat<rgba>& read_pam(std::string ifile) {
 	is.get();
 	if (d == 3) {
 		//RGB
-		mat<rgba> im(h, w);
-		for (size_t r; r < h; ++r) {
-			for (size_t c; c < w; ++c) {
+		im.resize(h, w);
+		for (size_t r = 0; r < h; ++r) {
+			for (size_t c = 0; c < w; ++c) {
 				is.read(reinterpret_cast<char*>(&im.at(r, c)), 3);
 				im.at(r, c)[3] = 255;
 			}
 		}
-		return im;
+		return true;
 	}
 	else if (d == 4){
 		//RGBA
-		mat<rgba> im(h, w);
+		im.resize(h, w);
 		is.read(reinterpret_cast<char*>(im.rawdata()), im.rawsize());
-		return im;
+		return true;
 
 	}
 	else {
-		mat<rgba> im(0, 0);
 		std::cout << "Error: input file cannot be grayscale." << std::endl;
-		return im;
+		return false;
 	}
 
 }
@@ -113,6 +116,7 @@ mat<rgba>& read_pam(std::string ifile) {
 bool write_pam(std::ofstream& os, mat<rgba>& im) {
 	os << "P7\nWIDTH " << im.cols() << "\nHEIGHT " << im.rows() << "\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n";
 	os.write(reinterpret_cast<const char*>(im.rawdata()), im.rawsize());
+	return true;
 }
 
 void paste_img(mat<rgba>& new_im, mat<rgba>& im, int x_off, int y_off) {
@@ -123,87 +127,78 @@ void paste_img(mat<rgba>& new_im, mat<rgba>& im, int x_off, int y_off) {
 	}
 }
 
-bool compose(std::string ifile1, std::string ifile2, std::string ofile, int x_off_1, int y_off_1, int x_off_2, int y_off_2) {
+bool compose(mat<rgba>& out, std::string ifile, int x_off, int y_off) {
 	
-	auto im1 = read_pam(ifile1);
-	auto im2 = read_pam(ifile2);
+	mat<rgba> im_to_add(0, 0);
+	if (!read_pam(ifile, im_to_add)) {
+		std::cout << "Cannot read input PAM image." << std::endl;
+		return false;
+	}
 
-	int new_w = std::max(im1.cols(), im2.cols()) + std::max(x_off_1, x_off_2);
-	int new_h = std::max(im1.rows(), im2.rows()) + std::max(y_off_1, y_off_2);
+	int new_w = im_to_add.cols() > out.cols() ? im_to_add.cols() + x_off : im_to_add.cols() + x_off > out.cols() ? im_to_add.cols() + x_off : out.cols();
+	int new_h = im_to_add.rows() > out.rows() ? im_to_add.rows() + y_off : im_to_add.rows() + y_off > out.rows() ? im_to_add.rows() + y_off : out.rows();
 
 	mat<rgba> partial_im_1(new_h, new_w);
 	mat<rgba> partial_im_2(new_h, new_w);
 	
 	//paste first image and second image in new one
-	paste_img(partial_im_1, im1, x_off_1, y_off_1);
-	paste_img(partial_im_2, im2, x_off_2, y_off_2);
+	paste_img(partial_im_1, out, 0, 0);
+	paste_img(partial_im_2, im_to_add, x_off, y_off);
 
-	mat<rgba> new_im(new_h, new_w);
+	
+	out.clear();
+	out.resize(new_h, new_w);
 
 	//calculate alpha
-	for (int r = 0; r < new_im.rows(); ++r) {
-		for (int c = 0; c < new_im.cols(); ++c) {
-			new_im.at(r, c)[3] = partial_im_1.at(r, c)[3] + (partial_im_2.at(r, c)[3] * (1 - partial_im_1.at(r, c)[3]));
+	for (int r = 0; r < out.rows(); ++r) {
+		for (int c = 0; c < out.cols(); ++c) {
+			out.at(r, c)[3] = partial_im_1.at(r, c)[3] + (partial_im_2.at(r, c)[3] * (1 - partial_im_1.at(r, c)[3]));
 			
-			for (uint8_t i = 0; i < 3; ++i) {
-				new_im.at(r, c)[i] = ((partial_im_1.at(r, c)[i] * partial_im_1.at(r, c)[3]) + ((partial_im_2.at(r, c)[i] * partial_im_2.at(r, c)[3]) * (1 - partial_im_1.at(r, c)[3]))) / new_im.at(r, c)[3];
+			if (out.at(r, c)[3] != 0) {
+				for (uint8_t i = 0; i < 3; ++i) {
+					out.at(r, c)[i] = ((partial_im_1.at(r, c)[i] * partial_im_1.at(r, c)[3]) + ((partial_im_2.at(r, c)[i] * partial_im_2.at(r, c)[3]) * (1 - partial_im_1.at(r, c)[3]))) / out.at(r, c)[3];
+				}
+			}
+			else {
+				for (uint8_t i = 0; i < 3; ++i) {
+					out.at(r, c)[i] = partial_im_2.at(r, c)[i];
+				}
 			}
 		}
 	}
-
 	return true;
 }
 
 int main(int argc, char** argv) {
 	std::string ofile = argv[1];
 	ofile += ".pam";
-	std::string ifile1;
-	std::string ifile2;
+	std::string ifile;
+	int nparams = argc - 2;
+	int p = 2;
+	mat<rgba> out(0, 0);
 
-	int x_off_1 = 0;
-	int y_off_1 = 0;
-	int x_off_2 = 0;
-	int y_off_2 = 0;
-
-	if (argv[2] == "-p") {
-		x_off_1 = std::stoi(argv[3]);
-		y_off_1 = std::stoi(argv[4]);
-		ifile1 = argv[5];
-		ifile1 += ".pam";
-
-
-		if (argv[6] == "-p") {
-			x_off_2 = std::stoi(argv[7]);
-			y_off_2 = std::stoi(argv[8]);
-			ifile2 = argv[9];
-			ifile2 += ".pam";
-
+	while (nparams > 0) {
+		int x_off = 0;
+		int y_off = 0;
+		if (std::string(argv[p]) == "-p") {
+			x_off = std::stoi(argv[p + 1]);
+			y_off = std::stoi(argv[p + 2]);
+			p += 3;
+			nparams -= 3;
 		}
-		else {
-			ifile2 = argv[6];
-			ifile2 += ".pam";
-
+		ifile = argv[p];
+		ifile += ".pam";
+		if (!compose(out, ifile, x_off, y_off)) {
+			return EXIT_FAILURE;
 		}
+		++p;
+		nparams--;
 	}
-	else {
-		ifile1 = argv[2];
-		ifile1 += ".pam";
 
-
-		if (argv[3] == "-p") {
-			x_off_2 = std::stoi(argv[4]);
-			y_off_2 = std::stoi(argv[5]);
-			ifile2 = argv[6];
-			ifile2 += ".pam";
-
-		}
-		else {
-			ifile2 = argv[3];
-			ifile2 += ".pam";
-		}
+	std::ofstream os(ofile, std::ios::binary);
+	if (!write_pam(os, out)) {
+		return EXIT_FAILURE;
 	}
-	if (compose(ifile1, ifile2, ofile, x_off_1, y_off_1, x_off_2, y_off_2)) {
-		return EXIT_SUCCESS;
-	}
-	return EXIT_FAILURE;
+
+	return EXIT_SUCCESS;
 }
