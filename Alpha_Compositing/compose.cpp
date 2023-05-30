@@ -4,6 +4,7 @@
 #include <iostream>
 #include <array>
 #include <variant>
+#include <cmath>
 
 using rgb = std::array<uint8_t, 3>;
 using rgba = std::array<uint8_t, 4>;
@@ -142,8 +143,8 @@ bool compose(mat<rgba>& out, std::string ifile, int x_off, int y_off) {
 	mat<rgba> partial_im_b(new_h, new_w);
 	
 	//paste first image and second image in new one
-	paste_img(partial_im_b, im_to_add, x_off, y_off);
-	paste_img(partial_im_a, out, 0, 0);
+	paste_img(partial_im_b, out, 0, 0);
+	paste_img(partial_im_a, im_to_add, x_off, y_off);
 
 	
 	out.clear();
@@ -152,13 +153,18 @@ bool compose(mat<rgba>& out, std::string ifile, int x_off, int y_off) {
 	//calculate alpha (A OVER B operator)
 	for (int r = 0; r < out.rows(); ++r) {
 		for (int c = 0; c < out.cols(); ++c) {
-			int alpha_0 = partial_im_a.at(r, c)[3] + (partial_im_b.at(r, c)[3] * (255 - partial_im_a.at(r, c)[3]));
-			out.at(r, c)[3] = alpha_0 > 255 ? 255 : alpha_0 < 0 ? 0 : alpha_0;
+
+			float ab = ((float)partial_im_b(r, c)[3]) / 255;
+			float aa = ((float)partial_im_a(r, c)[3]) / 255;
+
+			float a0 = aa + (ab * (1 - aa));
 			
+			out.at(r, c)[3] = a0 * 255;
+
 			if (out.at(r, c)[3] != 0) {
 				for (uint8_t i = 0; i < 3; ++i) {
-					int val = ((partial_im_a.at(r, c)[i] * partial_im_a.at(r, c)[3]) + ((partial_im_b.at(r, c)[i] * partial_im_b.at(r, c)[3]) * (255 - partial_im_a.at(r, c)[3]))) / out.at(r, c)[3];
-					out.at(r, c)[i] = val > 255 ? 255 : val < 0 ? 0 : val;
+					float val = (((float)partial_im_a.at(r, c)[i] * aa) + (((float)partial_im_b.at(r, c)[i] * ab) * (1 - aa))) / a0;
+					out.at(r, c)[i] = std::trunc(val);
 				}
 			}
 			else {
