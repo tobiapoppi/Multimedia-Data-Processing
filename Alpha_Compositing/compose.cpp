@@ -110,6 +110,11 @@ mat<rgba>& read_pam(std::string ifile) {
 
 }
 
+bool write_pam(std::ofstream& os, mat<rgba>& im) {
+	os << "P7\nWIDTH " << im.cols() << "\nHEIGHT " << im.rows() << "\nDEPTH 4\nMAXVAL 255\nTUPLTYPE RGB_ALPHA\nENDHDR\n";
+	os.write(reinterpret_cast<const char*>(im.rawdata()), im.rawsize());
+}
+
 void paste_img(mat<rgba>& new_im, mat<rgba>& im, int x_off, int y_off) {
 	for (int r = 0; r < im.rows(); ++r) {
 		for (int c = 0; c < im.cols(); ++c) {
@@ -126,13 +131,25 @@ bool compose(std::string ifile1, std::string ifile2, std::string ofile, int x_of
 	int new_w = std::max(im1.cols(), im2.cols()) + std::max(x_off_1, x_off_2);
 	int new_h = std::max(im1.rows(), im2.rows()) + std::max(y_off_1, y_off_2);
 
-	mat<rgba> new_im(new_h, new_w);
+	mat<rgba> partial_im_1(new_h, new_w);
+	mat<rgba> partial_im_2(new_h, new_w);
 	
 	//paste first image and second image in new one
-	paste_img(new_im, im1, x_off_1, y_off_1);
-	paste_img(new_im, im2, x_off_2, y_off_2);
+	paste_img(partial_im_1, im1, x_off_1, y_off_1);
+	paste_img(partial_im_2, im2, x_off_2, y_off_2);
 
-	//TODO: calculate alpha
+	mat<rgba> new_im(new_h, new_w);
+
+	//calculate alpha
+	for (int r = 0; r < new_im.rows(); ++r) {
+		for (int c = 0; c < new_im.cols(); ++c) {
+			new_im.at(r, c)[3] = partial_im_1.at(r, c)[3] + (partial_im_2.at(r, c)[3] * (1 - partial_im_1.at(r, c)[3]));
+			
+			for (uint8_t i = 0; i < 3; ++i) {
+				new_im.at(r, c)[i] = ((partial_im_1.at(r, c)[i] * partial_im_1.at(r, c)[3]) + ((partial_im_2.at(r, c)[i] * partial_im_2.at(r, c)[3]) * (1 - partial_im_1.at(r, c)[3]))) / new_im.at(r, c)[3];
+			}
+		}
+	}
 
 	return true;
 }
@@ -188,4 +205,5 @@ int main(int argc, char** argv) {
 	if (compose(ifile1, ifile2, ofile, x_off_1, y_off_1, x_off_2, y_off_2)) {
 		return EXIT_SUCCESS;
 	}
+	return EXIT_FAILURE;
 }
