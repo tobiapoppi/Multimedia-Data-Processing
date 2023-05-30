@@ -138,30 +138,32 @@ bool compose(mat<rgba>& out, std::string ifile, int x_off, int y_off) {
 	int new_w = im_to_add.cols() > out.cols() ? im_to_add.cols() + x_off : im_to_add.cols() + x_off > out.cols() ? im_to_add.cols() + x_off : out.cols();
 	int new_h = im_to_add.rows() > out.rows() ? im_to_add.rows() + y_off : im_to_add.rows() + y_off > out.rows() ? im_to_add.rows() + y_off : out.rows();
 
-	mat<rgba> partial_im_1(new_h, new_w);
-	mat<rgba> partial_im_2(new_h, new_w);
+	mat<rgba> partial_im_a(new_h, new_w);
+	mat<rgba> partial_im_b(new_h, new_w);
 	
 	//paste first image and second image in new one
-	paste_img(partial_im_1, out, 0, 0);
-	paste_img(partial_im_2, im_to_add, x_off, y_off);
+	paste_img(partial_im_b, im_to_add, x_off, y_off);
+	paste_img(partial_im_a, out, 0, 0);
 
 	
 	out.clear();
 	out.resize(new_h, new_w);
 
-	//calculate alpha
+	//calculate alpha (A OVER B operator)
 	for (int r = 0; r < out.rows(); ++r) {
 		for (int c = 0; c < out.cols(); ++c) {
-			out.at(r, c)[3] = partial_im_1.at(r, c)[3] + (partial_im_2.at(r, c)[3] * (1 - partial_im_1.at(r, c)[3]));
+			int alpha_0 = partial_im_a.at(r, c)[3] + (partial_im_b.at(r, c)[3] * (255 - partial_im_a.at(r, c)[3]));
+			out.at(r, c)[3] = alpha_0 > 255 ? 255 : alpha_0 < 0 ? 0 : alpha_0;
 			
 			if (out.at(r, c)[3] != 0) {
 				for (uint8_t i = 0; i < 3; ++i) {
-					out.at(r, c)[i] = ((partial_im_1.at(r, c)[i] * partial_im_1.at(r, c)[3]) + ((partial_im_2.at(r, c)[i] * partial_im_2.at(r, c)[3]) * (1 - partial_im_1.at(r, c)[3]))) / out.at(r, c)[3];
+					int val = ((partial_im_a.at(r, c)[i] * partial_im_a.at(r, c)[3]) + ((partial_im_b.at(r, c)[i] * partial_im_b.at(r, c)[3]) * (255 - partial_im_a.at(r, c)[3]))) / out.at(r, c)[3];
+					out.at(r, c)[i] = val > 255 ? 255 : val < 0 ? 0 : val;
 				}
 			}
 			else {
 				for (uint8_t i = 0; i < 3; ++i) {
-					out.at(r, c)[i] = partial_im_2.at(r, c)[i];
+					out.at(r, c)[i] = partial_im_b.at(r, c)[i];
 				}
 			}
 		}
