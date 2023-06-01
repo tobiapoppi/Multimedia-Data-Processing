@@ -4,6 +4,7 @@
 #include <vector>
 #include <algorithm>
 #include <array>
+#include <cstdint>
 
 using vec3b = std::array<uint8_t, 3>;
 
@@ -256,16 +257,19 @@ bool load_pgm(std::string ifile, std::string ofile) {
 	interpolate_secondPass(img);
 	
 	write_ppm(ofile + "_interp.ppm", img);
-
+	return true;
 }
 
 int main(int argc, char** argv) {
 	if (argc != 3) {
 		std::cout << "Syntax error." << std::endl;
+		return(EXIT_FAILURE);
 	}
 
 	std::string ifile = argv[1];
 	std::string ofile = argv[2];
 
 	load_pgm(ifile, ofile);
+	
+	return(EXIT_SUCCESS);
 }
