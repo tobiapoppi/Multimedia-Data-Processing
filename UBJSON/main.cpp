@@ -6,14 +6,233 @@
 #include <string>
 #include <functional>
 #include <exception>
-
-using namespace std;
+#include <map>
 
 #include "ppm.h"
 
-int convert(const string& sInput, const string& sOutput) {
+struct elem {
+	const uint8_t type_ = 0;
+	int8_t data_ = 0;
+	elem(){}
+};
 
+struct rgb {
+	uint8_t R_, G_, B_;
+};
+
+struct canvas {
+	int w_, h_, x_off, y_off;
+	rgb baclground_;
+};
+
+
+struct null_type : elem {
+	const uint8_t type_ = 'Z';
+	null_type() {}
+};
+struct noop_type : elem {
+	const uint8_t type_ = 'N';
+	noop_type() {}
+};
+struct true_type : elem {
+	const uint8_t type_ = 'T';
+	true_type() {}
+};
+struct false_type : elem {
+	const uint8_t type_ = 'F';
+	false_type() {}
+};
+struct int8_type : elem {
+	const uint8_t type_ = 'i';
+	int8_t data_;
+	int8_type() {}
+};
+struct uint8_type : elem {
+	const uint8_t type_ = 'U';
+	uint8_t data_;
+	uint8_type() {}
+};
+struct int16_type : elem {
+	const uint8_t type_ = 'I';
+	int16_t data_;
+	int16_type() {}
+};
+struct int32_type : elem {
+	const uint8_t type_ = 'l';
+	int32_t data_;
+	int32_type() {}
+};
+struct float32_type : elem {
+	const uint8_t type_ = 'd';
+	float data_;
+	float32_type() {}
+};
+struct float64_type : elem {
+	const uint8_t type_ = 'D';
+	double data_;
+	float64_type() {}
+};
+struct char_type : elem {
+	const uint8_t type_ = 'C';
+	uint8_t data_;
+	char_type() {}
+};
+struct string_type : elem {
+	const uint8_t type_ = 'S';
+	elem* len_;
+	std::string data_;
+	string_type() {}
+};
+
+struct object_type : elem {
+	int length_ = 0;
+	std::vector<std::pair<std::string, elem*>> data_;
+	object_type() {}
+};
+
+void le2be(uint32_t& u, uint8_t nbytes) {
+	int32_t n = 0;
+	switch (nbytes) {
+	case 2:
+		u = u & 0x0000FFFF;
+		n = (u >> 8) + ((u << 8) & 0x0000FF00);
+	case 4:
+		n = (u >> 24) + ((u >> 8) & 0x0000FF00) + ((u << 8) & 0x00FF0000) + ((u << 24) & 0xFF000000);
+	}
+	u = n;
+}
+
+void le2be(int16_t& u, uint8_t nbytes) {
+	int32_t n = 0;
+	switch (nbytes) {
+	case 2:
+		u = u & 0x0000FFFF;
+		n = (u >> 8) + ((u << 8) & 0x0000FF00);
+	case 4:
+		n = (u >> 24) + ((u >> 8) & 0x0000FF00) + ((u << 8) & 0x00FF0000) + ((u << 24) & 0xFF000000);
+	}
+	u = n;
+}
+
+void read_key(std::ifstream& is, std::string& s) {
+	is.get();
+	uint8_t len;
+	is.read(reinterpret_cast<char*>(&len), 1);
+	is.read(reinterpret_cast<char*>(&s[0]), len);
+}
+
+elem* read_val(std::ifstream& is) {
+	uint8_t c;
+	c = is.get();
+	elem* pointer = nullptr;
+	switch (c) {
+	case uint8_t('i'):
+	{
+		int8_type t;
+		is.read(reinterpret_cast<char*>(&t.data_), 1);
+		pointer = &t;
+	}
+	case uint8_t('U'):
+	{
+		uint8_type t;
+		is.read(reinterpret_cast<char*>(&t.data_), 1);
+		pointer = &t;
+	}
+	case uint8_t('I'):
+	{
+		int16_type t;
+		is.read(reinterpret_cast<char*>(&t.data_), 2);
+		le2be(t.data_, 2);
+		pointer = &t;
+	}
+	case uint8_t('l'):
+	{
+		int32_type t;
+		is.read(reinterpret_cast<char*>(&t.data_), 4);
+		pointer = &t;
+	}
+	case uint8_t('d'):
+	{
+		float32_type t;
+		is.read(reinterpret_cast<char*>(&t.data_), 4);
+		pointer = &t;
+	}
+	case uint8_t('D'):
+	{
+		float64_type t;
+		is.read(reinterpret_cast<char*>(&t.data_), 8);
+		pointer = &t;
+	}
+	case uint8_t('C'):
+	{
+		char_type t;
+		is.read(reinterpret_cast<char*>(&t.data_), 1);
+		pointer = &t;
+	}
+	case uint8_t('S'):
+	{
+		string_type t;
+		elem* el = read_val(is);
+		t.len_ = el;
+		is.read(reinterpret_cast<char*>(&t.data_[0]), t.len_->data_);
+		pointer = &t;
+	}
+	case uint8_t('{'):
+	{
+		object_type ob;
+		while (is.peek() != '}') {
+			std::pair<std::string, elem*> p = read_couple(is);
+			ob.data_.push_back(p);
+		}
+		pointer = &ob;
+	}
+	}
+	return pointer;
+}
+
+std::pair<std::string, elem*> read_couple(std::ifstream& is) {
+	is.get();
+	uint8_t c;
+	std::string s;
+	read_key(is, s);
+	elem* el = read_val(is);
+	std::pair<std::string, elem*> p{ s, el };
+	return p;
+}
+
+void read_canvas(std::ifstream & is) {
+	is.get();
+
+}
+
+int convert(const std::string& ifile, const std::string& ofile) {
+
+	// Un chiarimento su UBJ: tutte le chiavi delle chiavi/valore json devono necessariamente essere stringhe
+	// quindi vengono rappresentate come stringhe ma omettendo obbligatoriamente la [S] (per questo si specifica la
+	// length dopo la [i].
+	// 
 	// Dal file UBJ devo estrarre le informazioni e creare il canvas
+
+	std::ifstream is(ifile, std::ios::binary);
+
+	read_canvas(is);
+
+	std::map<std::string, std::unique_ptr<elem>> map;
+
+
+	if (is.peek() == '{') {
+		is.get();
+		object o;
+		while (is.peek() != '}') {
+			//read key (string)
+			std::string key;
+			//read len
+			elem* pointer = read_tuple(is);
+
+			o.data_.push_back(std::unique_ptr<elem>(pointer));
+		}
+	}
+
 
 	unsigned w = 100; // TODO : modificare
 	unsigned h = 100; // TODO : modificare
@@ -25,7 +244,7 @@ int convert(const string& sInput, const string& sOutput) {
 	// Dal file UBJ devo estrarre le informazioni sulle immagini da incollare su img 
 
 	// Output in formato PPM
-	if (!writeP6(sOutput, img))
+	if (!writeP6(ofile, img))
 		return EXIT_FAILURE;
 
 	return EXIT_SUCCESS;
@@ -33,10 +252,13 @@ int convert(const string& sInput, const string& sOutput) {
 
 int main(int argc, char *argv[]) {
 
-	// TODO : gestire la linea di comando
+	if (argc != 3) {
+		std::cout << "Syntax Error." << std::endl;
+		return EXIT_FAILURE;
+	}
+	
+	std::string ifile = argv[1];
+	std::string ofile = argv[2];
 
-	string sInput = "caso01.ubj";
-	string sOutput = "caso01.ppm";
-
-	return convert(sInput, sOutput);
+	return convert(ifile, ofile);
 }
