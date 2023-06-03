@@ -22,7 +22,7 @@ struct rgb {
 
 struct canvas {
 	int w_, h_, x_off, y_off;
-	rgb baclground_;
+	rgb background_;
 };
 
 
@@ -85,9 +85,15 @@ struct string_type : elem {
 };
 
 struct object_type : elem {
-	int length_ = 0;
-	std::vector<std::pair<std::string, elem*>> data_;
+	elem* len_ = nullptr;
+	std::map<std::string, elem*> map_;
 	object_type() {}
+};
+struct array_type : elem {
+	elem* len_ = nullptr;
+	std::vector<uint8_t> arrdata_;
+	uint8_t dtype_;
+	array_type() {}
 };
 
 void le2be(uint32_t& u, uint8_t nbytes) {
@@ -121,9 +127,14 @@ void read_key(std::ifstream& is, std::string& s) {
 	is.read(reinterpret_cast<char*>(&s[0]), len);
 }
 
-elem* read_val(std::ifstream& is) {
+elem* read_val(std::ifstream& is, uint8_t carattere = 0, bool read = true) {
 	uint8_t c;
-	c = is.get();
+	if (read) {
+		c = is.get();
+	}
+	else {
+		c = carattere;
+	}
 	elem* pointer = nullptr;
 	switch (c) {
 	case uint8_t('i'):
@@ -182,15 +193,35 @@ elem* read_val(std::ifstream& is) {
 		object_type ob;
 		while (is.peek() != '}') {
 			std::pair<std::string, elem*> p = read_couple(is);
-			ob.data_.push_back(p);
+			ob.map_[p.first] = p.second;
 		}
 		pointer = &ob;
+	}
+	case uint8_t('['):
+	{
+		array_type v;
+		while (is.peek() != ']') {
+			char tmp;
+			tmp = is.get();
+			if (tmp == '$') {
+				is.read(reinterpret_cast<char*>(&v.dtype_), 1);
+				tmp = is.get();
+			}
+			if (tmp == '#') {
+				elem* el = read_val(is);
+				v.len_ = el;
+				for (size_t i = 0; i < v.len_->data_; ++i) {
+					v.data_.push_back(read_val(is, v.dtype_, false)->data_);
+				}
+			}
+		}
+		pointer = &v;
 	}
 	}
 	return pointer;
 }
 
-std::pair<std::string, elem*> read_couple(std::ifstream& is) {
+std::pair<std::string, object_type*> read_couple(std::ifstream& is) {
 	is.get();
 	uint8_t c;
 	std::string s;
@@ -202,7 +233,12 @@ std::pair<std::string, elem*> read_couple(std::ifstream& is) {
 
 void read_canvas(std::ifstream & is) {
 	is.get();
-
+	std::pair<std::string, object_type*> p = read_couple(is);
+	canvas c;
+	c.w_ = p.second->map_["width"]->data_;
+	c.h_ = p.second->map_["height"]->data_;
+	c.background_.R_ = p.second->map_["background"]->data_[0];
+	c.background_ = e->data_["background"]->data_[0];
 }
 
 int convert(const std::string& ifile, const std::string& ofile) {
