@@ -9,11 +9,13 @@
 #include <map>
 
 #include "ppm.h"
+#include "image.h"
 
 struct elem {
 	const uint8_t type_ = 0;
 	int8_t data_ = 0;
 	elem(){}
+	virtual ~elem(){}
 };
 
 struct rgb {
@@ -96,6 +98,8 @@ struct array_type : elem {
 	array_type() {}
 };
 
+std::pair<std::string, elem*> read_couple(std::ifstream& is);
+
 void le2be(uint32_t& u, uint8_t nbytes) {
 	int32_t n = 0;
 	switch (nbytes) {
@@ -120,10 +124,10 @@ void le2be(int16_t& u, uint8_t nbytes) {
 	u = n;
 }
 
+
+
 void read_key(std::ifstream& is, std::string& s) {
-	is.get();
-	uint8_t len;
-	is.read(reinterpret_cast<char*>(&len), 1);
+	uint8_t len = is.get();
 	is.read(reinterpret_cast<char*>(&s[0]), len);
 }
 
@@ -142,12 +146,14 @@ elem* read_val(std::ifstream& is, uint8_t carattere = 0, bool read = true) {
 		int8_type t;
 		is.read(reinterpret_cast<char*>(&t.data_), 1);
 		pointer = &t;
+		break;
 	}
 	case uint8_t('U'):
 	{
 		uint8_type t;
 		is.read(reinterpret_cast<char*>(&t.data_), 1);
 		pointer = &t;
+		break;
 	}
 	case uint8_t('I'):
 	{
@@ -155,30 +161,35 @@ elem* read_val(std::ifstream& is, uint8_t carattere = 0, bool read = true) {
 		is.read(reinterpret_cast<char*>(&t.data_), 2);
 		le2be(t.data_, 2);
 		pointer = &t;
+		break;
 	}
 	case uint8_t('l'):
 	{
 		int32_type t;
 		is.read(reinterpret_cast<char*>(&t.data_), 4);
 		pointer = &t;
+		break;
 	}
 	case uint8_t('d'):
 	{
 		float32_type t;
 		is.read(reinterpret_cast<char*>(&t.data_), 4);
 		pointer = &t;
+		break;
 	}
 	case uint8_t('D'):
 	{
 		float64_type t;
 		is.read(reinterpret_cast<char*>(&t.data_), 8);
 		pointer = &t;
+		break;
 	}
 	case uint8_t('C'):
 	{
 		char_type t;
 		is.read(reinterpret_cast<char*>(&t.data_), 1);
 		pointer = &t;
+		break;
 	}
 	case uint8_t('S'):
 	{
@@ -187,6 +198,7 @@ elem* read_val(std::ifstream& is, uint8_t carattere = 0, bool read = true) {
 		t.len_ = el;
 		is.read(reinterpret_cast<char*>(&t.data_[0]), t.len_->data_);
 		pointer = &t;
+		break;
 	}
 	case uint8_t('{'):
 	{
@@ -195,7 +207,9 @@ elem* read_val(std::ifstream& is, uint8_t carattere = 0, bool read = true) {
 			std::pair<std::string, elem*> p = read_couple(is);
 			ob.map_[p.first] = p.second;
 		}
+		is.get();
 		pointer = &ob;
+		break;
 	}
 	case uint8_t('['):
 	{
@@ -211,17 +225,19 @@ elem* read_val(std::ifstream& is, uint8_t carattere = 0, bool read = true) {
 				elem* el = read_val(is);
 				v.len_ = el;
 				for (size_t i = 0; i < v.len_->data_; ++i) {
-					v.data_.push_back(read_val(is, v.dtype_, false)->data_);
+					v.arrdata_.push_back(read_val(is, v.dtype_, false)->data_);
 				}
 			}
 		}
+		is.get();
 		pointer = &v;
+		break;
 	}
 	}
 	return pointer;
 }
 
-std::pair<std::string, object_type*> read_couple(std::ifstream& is) {
+std::pair<std::string, elem*> read_couple(std::ifstream& is) {
 	is.get();
 	uint8_t c;
 	std::string s;
@@ -231,14 +247,32 @@ std::pair<std::string, object_type*> read_couple(std::ifstream& is) {
 	return p;
 }
 
-void read_canvas(std::ifstream & is) {
+void read_canvas(std::ifstream& is, canvas& c) {
 	is.get();
-	std::pair<std::string, object_type*> p = read_couple(is);
-	canvas c;
-	c.w_ = p.second->map_["width"]->data_;
-	c.h_ = p.second->map_["height"]->data_;
-	c.background_.R_ = p.second->map_["background"]->data_[0];
-	c.background_ = e->data_["background"]->data_[0];
+	std::pair<std::string, elem*> p = read_couple(is);
+	object_type* ob = dynamic_cast<object_type*>(p.second);
+	c.w_ = ob->map_["width"]->data_;
+	c.h_ = ob->map_["height"]->data_;
+	c.background_.R_ = dynamic_cast<array_type*>(ob->map_["background"])->arrdata_[0];
+	c.background_.G_ = dynamic_cast<array_type*>(ob->map_["background"])->arrdata_[1];
+	c.background_.B_ = dynamic_cast<array_type*>(ob->map_["background"])->arrdata_[2];
+}
+
+void read_elements(std::ifstream& is) {
+	image<rgb> img;
+
+	is.get();
+	std::pair<std::string, elem*> p = read_couple(is);
+	object_type* ob = dynamic_cast<object_type*>(p.second);
+	object_type* im = dynamic_cast<object_type*>(ob->map_["image"]);
+	int x_off = im->map_["x"]->data_;
+	int y_off = im->map_["y"]->data_;
+	int w = im->map_["width"]->data_;
+	int h = im->map_["height"]->data_;
+	img.resize(w, h);
+	for (size_t i = 0; i < img.data_size(); ++i) {
+		img.data()[i] = dynamic_cast<array_type*>(im->map_["data"])->arrdata_[i];
+	}
 }
 
 int convert(const std::string& ifile, const std::string& ofile) {
@@ -251,23 +285,13 @@ int convert(const std::string& ifile, const std::string& ofile) {
 
 	std::ifstream is(ifile, std::ios::binary);
 
-	read_canvas(is);
+	canvas c;
 
-	std::map<std::string, std::unique_ptr<elem>> map;
+	read_canvas(is, c);
 
+	read_elements(is);
 
-	if (is.peek() == '{') {
-		is.get();
-		object o;
-		while (is.peek() != '}') {
-			//read key (string)
-			std::string key;
-			//read len
-			elem* pointer = read_tuple(is);
-
-			o.data_.push_back(std::unique_ptr<elem>(pointer));
-		}
-	}
+	//std::map<std::string, std::unique_ptr<elem>> map;
 
 
 	unsigned w = 100; // TODO : modificare
