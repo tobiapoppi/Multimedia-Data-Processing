@@ -157,12 +157,11 @@ bool load_pcx(const std::string& filename, mat<vec3b>& img) {
 
 	img.resize(ysize, xsize);
 
-	int subtotal = 0;
-	int r = 0;
-	int c = 0;
-	while (ysize-- > 0) {
+	for (size_t r = 0; r < img.rows(); ++r) {
 		int plane = 0;
-		while (subtotal < totalbytes) {
+		int c = 0;
+		
+		while (plane < 3) {
 			uint8_t b = 0;
 			is.read(reinterpret_cast<char*>(&b), 1);
 			if ((b >> 6) == 3) {
@@ -171,36 +170,23 @@ bool load_pcx(const std::string& filename, mat<vec3b>& img) {
 				is.read(reinterpret_cast<char*>(&d), 1);
 
 				while (run-- > 0) {
-					if (plane > 2) break;
 					img(r, c)[plane] = d;
-					if (c == img.cols() - 1) {
-						is.ignore(bppline - xsize);
-						subtotal += (bppline - xsize);
+					++c;
+					if (c >= bppline) {
 						c = 0;
 						++plane;
 					}
-					++ subtotal;
-					++c;
 				}
 			}
 			else {
-				if (plane > 2) break;
 				img(r, c)[plane] = b;
-				if (c == img.cols() - 1) {
-					is.ignore(bppline - xsize);
-					subtotal += (bppline - xsize);
+				++c;
+				if (c >= bppline) {
 					c = 0;
 					++plane;
 				}
-
-				++subtotal;
-				++c;
 			}
-
 		}
-		++r;
-		subtotal = 0;
-		c = 0;
 	}
 	return true;
 }
