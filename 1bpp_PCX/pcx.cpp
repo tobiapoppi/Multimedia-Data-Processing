@@ -1,8 +1,10 @@
+#define esercizio2
+
+#ifdef esercizio1
 #include "pcx.h"
 
 #include <fstream>
 #include <iostream>
-
 
 bool read_header(std::ifstream& is, int& xsize, int& ysize, int& totalbytes) {
 	uint8_t man, v, enc, bpp;
@@ -45,7 +47,7 @@ bool load_pcx(const std::string& filename, mat<uint8_t>& img) {
 		std::cout << "Cannot open input file." << std::endl;
 		return false;
 	}
-	
+
 	std::vector<uint8_t> out;
 
 	int xsize, ysize;
@@ -92,3 +94,116 @@ bool load_pcx(const std::string& filename, mat<uint8_t>& img) {
 	}
 	return true;
 }
+
+#endif // esercizio1
+
+#ifdef esercizio2
+#include "pcx.h"
+#include "types.h"
+
+#include <fstream>
+#include <iostream>
+
+bool read_header(std::ifstream& is, int& xsize, int& ysize, int& totalbytes, int& bppline) {
+	uint8_t man, v, enc, bpp;
+	uint16_t winXmin, winYmin, winXmax, winYmax, vdpi, hdpi;
+	// ignore 48 bytes
+	uint8_t reserved, cplanes;
+	uint16_t Bppline, paletteinfo, horscr, verscr;
+	// ignore 54 bytes
+
+	is.read(reinterpret_cast<char*>(&man), 1);
+	is.read(reinterpret_cast<char*>(&v), 1);
+	is.read(reinterpret_cast<char*>(&enc), 1);
+	is.read(reinterpret_cast<char*>(&bpp), 1);
+	is.read(reinterpret_cast<char*>(&winXmin), 2);
+	is.read(reinterpret_cast<char*>(&winYmin), 2);
+	is.read(reinterpret_cast<char*>(&winXmax), 2);
+	is.read(reinterpret_cast<char*>(&winYmax), 2);
+	is.read(reinterpret_cast<char*>(&vdpi), 2);
+	is.read(reinterpret_cast<char*>(&hdpi), 2);
+	is.ignore(48);
+	is.read(reinterpret_cast<char*>(&reserved), 1);
+	is.read(reinterpret_cast<char*>(&cplanes), 1);
+	is.read(reinterpret_cast<char*>(&Bppline), 2);
+	is.read(reinterpret_cast<char*>(&paletteinfo), 2);
+	is.read(reinterpret_cast<char*>(&horscr), 2);
+	is.read(reinterpret_cast<char*>(&verscr), 2);
+	is.ignore(54);
+
+	xsize = winXmax - winXmin + 1;
+	ysize = winYmax - winYmin + 1;
+
+	totalbytes = cplanes * Bppline;
+	bppline = int(Bppline);
+	return true;
+}
+
+
+bool load_pcx(const std::string& filename, mat<vec3b>& img) {
+	std::ifstream is(filename, std::ios::binary);
+	if (!is) {
+		std::cout << "Cannot open input file." << std::endl;
+		return false;
+	}
+
+	int xsize, ysize;
+	int totalbytes;
+	int bppline;
+
+	if (!read_header(is, xsize, ysize, totalbytes, bppline)) {
+		return false;
+	}
+
+	img.resize(ysize, xsize);
+
+	int subtotal = 0;
+	int r = 0;
+	int c = 0;
+	while (ysize-- > 0) {
+		int plane = 0;
+		while (subtotal < totalbytes) {
+			uint8_t b = 0;
+			is.read(reinterpret_cast<char*>(&b), 1);
+			if ((b >> 6) == 3) {
+				uint8_t run = b & 0b00111111;
+				uint8_t d;
+				is.read(reinterpret_cast<char*>(&d), 1);
+
+				while (run-- > 0) {
+					if (plane > 2) break;
+					img(r, c)[plane] = d;
+					if (c == img.cols() - 1) {
+						is.ignore(bppline - xsize);
+						subtotal += (bppline - xsize);
+						c = 0;
+						++plane;
+					}
+					++ subtotal;
+					++c;
+				}
+			}
+			else {
+				if (plane > 2) break;
+				img(r, c)[plane] = b;
+				if (c == img.cols() - 1) {
+					is.ignore(bppline - xsize);
+					subtotal += (bppline - xsize);
+					c = 0;
+					++plane;
+				}
+
+				++subtotal;
+				++c;
+			}
+
+		}
+		++r;
+		subtotal = 0;
+		c = 0;
+	}
+	return true;
+}
+
+#endif // esercizio2
+
