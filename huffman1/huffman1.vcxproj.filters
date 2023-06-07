@@ -18,5 +18,8 @@
     <ClCompile Include="huffman1.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="bitstreams.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
